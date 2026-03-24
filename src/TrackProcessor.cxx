@@ -554,13 +554,9 @@ void TrackProcessor::cloud_smearing3D(const vector<double>& x_hits_tr,
     //    cout<<nel[i]<<"\n";
     //}
 
-    vector<double> dz;
-    int opt_gem=config.getDouble("z_extra");
-    transform(z_hits_tr.begin(),z_hits_tr.end(),back_inserter(dz), [&] (double a) { return a+opt_gem;});
-
-    vector<double> sigma_x = compute_sigma(config.getDouble("diff_const_sigma0T"), config.getDouble("diff_coeff_T"), dz);
-    vector<double> sigma_y = compute_sigma(config.getDouble("diff_const_sigma0T"), config.getDouble("diff_coeff_T"), dz);
-    vector<double> sigma_z = compute_sigma(config.getDouble("diff_const_sigma0L"), config.getDouble("diff_coeff_L"), dz);
+    vector<double> sigma_x = compute_sigma(config.getDouble("diff_const_sigma0T"), config.getDouble("diff_coeff_T"), z_hits_tr);
+    vector<double> sigma_y = compute_sigma(config.getDouble("diff_const_sigma0T"), config.getDouble("diff_coeff_T"), z_hits_tr);
+    vector<double> sigma_z = compute_sigma(config.getDouble("diff_const_sigma0L"), config.getDouble("diff_coeff_L"), z_hits_tr);
 
     //Here this is the slowest part
     //Sequential
@@ -763,11 +759,7 @@ void TrackProcessor::ph_smearing2D( const vector<double>& x_hits_tr,
         return nel_i * optA * GEM3_gain * omega * optphotons_per_el * optcounts_per_photon;
     });
 
-    vector<double> dz;
-    int opt_gem=config.getDouble("z_extra");
-    transform(z_hits_tr.begin(),z_hits_tr.end(),back_inserter(dz), [&] (double a) { return a+opt_gem;});
-
-    vector<double> sigma_xy = compute_sigma(config.getDouble("diff_const_sigma0T"), config.getDouble("diff_coeff_T"), dz);
+    vector<double> sigma_xy = compute_sigma(config.getDouble("diff_const_sigma0T"), config.getDouble("diff_coeff_T"), z_hits_tr);
 
     S2D_x = smear(x_hits_tr, sigma_xy, nph);
     S2D_y = smear(y_hits_tr, sigma_xy, nph);
