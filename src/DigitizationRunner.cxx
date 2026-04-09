@@ -33,14 +33,20 @@ DigitizationRunner::DigitizationRunner(const std::string& configFile_,
       inputDir(inputDir_),
       outputDir(outputDir_)
 {
+    
+    
     if (!config.loadConfig(configFile)) {
         cerr << "Failed to load configuration file: " << configFile << endl;
         exit(EXIT_FAILURE);
     }
+    
 
     config.validateAxisMappings();
 
+    
+
     runCount = config.getInt("start_run_number");
+    
 
     // DEBUG
     //config.printConfig();
@@ -70,7 +76,7 @@ void DigitizationRunner::run() {
     auto t0 = std::chrono::steady_clock::now();
 
     setSeed();
-
+    
     processRootFiles();
 
     auto t1 = std::chrono::steady_clock::now();
@@ -985,23 +991,75 @@ void DigitizationRunner::processRootFiles() {
                 // with saturation
                 if(config.getBool("saturation")) {
                     cout<<"Starting compute_cmos_with_saturation with size = "<<x_hits_tr.size()<<"..."<<endl;
-                    processTrack.computeWithSaturation(x_hits_tr,
-                                                        y_hits_tr,
-                                                        z_hits_tr,
-                                                        energy_hits,
-                                                        VignMap,
-                                                        energy,
-                                                        NR_flag,
-                                                        array2d_Nph
-                                                        );
+                    if(!processTrack.computeWithSaturation(x_hits_tr,
+                                                           y_hits_tr,
+                                                           z_hits_tr,
+                                                           energy_hits,
+                                                           VignMap,
+                                                           energy,
+                                                           NR_flag,
+                                                           array2d_Nph
+                                                           )) {
+                        std::cerr<<"Warning: DigitizationRunner::processRootFiles: skipping this track because of error from TrackProcessor::computeWithSaturation."<<std::endl;
+
+                        // The reported energy is -1 for those tracks to be recognizable
+                        energy = -1;
+                        TH2I final_image(Form("pic_run%d_ev%d", runCount, entry-start), "",
+                                            x_pix, -0.5, x_pix -0.5,
+                                            y_pix, -0.5, y_pix -0.5);
+                        
+                        for(unsigned int xx =0; xx < background.size(); xx++) {
+                            for(unsigned int yy =0; yy < background[0].size(); yy++) {
+                                final_image.SetBinContent(xx+1, yy+1, background[xx][yy]);
+                            }
+                        }
+    
+                        // Make sure nRedpix matches
+                        nRedpix = redpix_ix->size();
+                        
+                        outtree->Fill();
+                        outfile->cd();
+                        if(!config.getBool("redpix_output")) {
+                            final_image.Write();
+                        }
+                        
+                        continue;
+                        
+                    }
                     
                 } else {// no saturation [Fixme: not updated]
-                    processTrack.computeWithoutSaturation(x_hits_tr,
+                    if(!processTrack.computeWithoutSaturation(x_hits_tr,
                                                         y_hits_tr,
                                                         z_hits_tr,
                                                         energy_hits,
                                                         array2d_Nph
-                                                        );
+                                                        )) {
+                        std::cerr<<"Warning: DigitizationRunner::processRootFiles: skipping this track because of error from TrackProcessor::computeWithoutSaturation."<<std::endl;
+
+                        // The reported energy is -1 for those tracks to be recognizable
+                        energy = -1;
+                        TH2I final_image(Form("pic_run%d_ev%d", runCount, entry-start), "",
+                                            x_pix, -0.5, x_pix -0.5,
+                                            y_pix, -0.5, y_pix -0.5);
+                        
+                        for(unsigned int xx =0; xx < background.size(); xx++) {
+                            for(unsigned int yy =0; yy < background[0].size(); yy++) {
+                                final_image.SetBinContent(xx+1, yy+1, background[xx][yy]);
+                            }
+                        }
+    
+                        // Make sure nRedpix matches
+                        nRedpix = redpix_ix->size();
+                        
+                        outtree->Fill();
+                        outfile->cd();
+                        if(!config.getBool("redpix_output")) {
+                            final_image.Write();
+                        }
+                        
+                        continue;
+                        
+                    }
                 }
                 cout<<"DEBUG: after compute"<<endl<<flush;
                 auto tb = std::chrono::steady_clock::now();
