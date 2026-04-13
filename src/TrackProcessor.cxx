@@ -30,9 +30,11 @@
 using namespace std;
 
 TrackProcessor::TrackProcessor(ConfigManager& configMgr)
-    : config(configMgr) {}
+    : config(configMgr) {
+        N_primaries_reaching_GEMs = -1;
+    }
 
-void TrackProcessor::computeWithSaturation(const vector<double>& x_hits_tr,
+bool TrackProcessor::computeWithSaturation(const vector<double>& x_hits_tr,
                                            const vector<double>& y_hits_tr,
                                            const vector<double>& z_hits_tr,
                                            const vector<double>& energy_hits,
@@ -47,7 +49,7 @@ void TrackProcessor::computeWithSaturation(const vector<double>& x_hits_tr,
     vector<float> S3D_z;
     
     // if there are no electrons on GEM3, just use empty image
-    if (x_hits_tr.size() == 0) return;
+    if (x_hits_tr.size() == 0) return true;
     // if there are electrons on GEM3, apply saturation effect
     else {
         double OFF = 15;
@@ -200,7 +202,10 @@ void TrackProcessor::computeWithSaturation(const vector<double>& x_hits_tr,
             } else {
 
                 auto startsmear = std::chrono::steady_clock::now();
-                cloud_smearing3D(x_hits_tr, y_hits_tr, z_hits_tr, energy_hits, S3D_x, S3D_y, S3D_z);
+                if(!cloud_smearing3D(x_hits_tr, y_hits_tr, z_hits_tr, energy_hits, S3D_x, S3D_y, S3D_z)) {
+                    std::cerr << "Warning: TrackProcessor::computeWithSaturation: skipping this track because of error from TrackProcessor::cloud_smearing3D."<<std::endl;
+                    return false;
+                }
                 auto endsmear = std::chrono::steady_clock::now();
                 dur_smear=dur_smear+endsmear-startsmear;
                 size_tot+=S3D_z.size();
@@ -316,7 +321,10 @@ void TrackProcessor::computeWithSaturation(const vector<double>& x_hits_tr,
                         
                         //cout<<"Smearing..."<<endl<<flush;
                         auto startsmear = std::chrono::steady_clock::now();
-                        cloud_smearing3D(x_hits_tr_i, y_hits_tr_i, z_hits_tr_i, energy_hits_i, S3D_x, S3D_y, S3D_z);
+                        if(!cloud_smearing3D(x_hits_tr_i, y_hits_tr_i, z_hits_tr_i, energy_hits_i, S3D_x, S3D_y, S3D_z)) {
+                            std::cerr << "Warning: TrackProcessor::computeWithSaturation: skipping this track because of error from TrackProcessor::cloud_smearing3D."<<std::endl;
+                            return false;
+                        }
                         auto endsmear = std::chrono::steady_clock::now();
                         dur_smear=dur_smear+endsmear-startsmear;
                         size_tot+=S3D_z.size();
@@ -376,7 +384,10 @@ void TrackProcessor::computeWithSaturation(const vector<double>& x_hits_tr,
 
                 } else {
                     auto startsmear = std::chrono::steady_clock::now();
-                    cloud_smearing3D(x_hits_tr, y_hits_tr, z_hits_tr, energy_hits, S3D_x, S3D_y, S3D_z);
+                    if(!cloud_smearing3D(x_hits_tr, y_hits_tr, z_hits_tr, energy_hits, S3D_x, S3D_y, S3D_z)) {
+                        std::cerr << "Warning: TrackProcessor::computeWithSaturation: skipping this track because of error from TrackProcessor::cloud_smearing3D."<<std::endl;
+                        return false;
+                    }
                     auto endsmear = std::chrono::steady_clock::now();
                     dur_smear=dur_smear+endsmear-startsmear;
                     size_tot+=S3D_z.size();
@@ -440,19 +451,19 @@ void TrackProcessor::computeWithSaturation(const vector<double>& x_hits_tr,
         std::cout << "Time smear " << dur_smear.count() << " seconds" <<std::endl;
         std::cout << "Time Critical " << dur_criti.count() << " seconds" <<std::endl;
         std::cout << "Time ampli " << dur_ampli.count() << " seconds" <<std::endl;
-
+        
         // Padding [Now before camera digitization because needed for VignMap]
         // FIXME: Write a function padding()
         //Define a translation vector
         
         // DEBUG
-        //int sommatotale =0;
-        //
-        //sommatotale = accumulate(hout.cbegin(), hout.cend(), 0, [](auto sum, const auto& row) {
-        //            return accumulate(row.cbegin(), row.cend(), sum);
-        //        });
-        //
-        //cout<<"INT = "<<sommatotale<<endl;
+        // int sommatotale =0;
+        
+        // sommatotale = accumulate(hout.cbegin(), hout.cend(), 0, [](auto sum, const auto& row) {
+        //             return accumulate(row.cbegin(), row.cend(), sum);
+        //         });
+        
+        // cout<<"DEBUG: INT = "<<sommatotale<<endl;
 
         int x_center_cloud=(int)round(((xmax+xmin)/2.)/xbin_dim);
         int y_center_cloud=(int)round(((ymax+ymin)/2.)/ybin_dim);
@@ -522,12 +533,12 @@ void TrackProcessor::computeWithSaturation(const vector<double>& x_hits_tr,
         }
         
     }
-    return;
+    return true;
 
 
 }
 
-void TrackProcessor::computeWithoutSaturation(const std::vector<double>& x_hits_tr,
+bool TrackProcessor::computeWithoutSaturation(const std::vector<double>& x_hits_tr,
                                               const std::vector<double>& y_hits_tr,
                                               const std::vector<double>& z_hits_tr,
                                               const std::vector<double>& energy_hits,
@@ -538,7 +549,10 @@ void TrackProcessor::computeWithoutSaturation(const std::vector<double>& x_hits_
 
     vector<float> S2D_x;
     vector<float> S2D_y;
-    ph_smearing2D(x_hits_tr, y_hits_tr, z_hits_tr, energy_hits, S2D_x, S2D_y);      //Function still to be corrected
+    if(!ph_smearing2D(x_hits_tr, y_hits_tr, z_hits_tr, energy_hits, S2D_x, S2D_y)) {      //Function still to be corrected
+        std::cerr << "Warning: TrackProcessor::computeWithoutSaturation: skipping this track because of error from TrackProcessor::ph_smearing2D."<<std::endl;
+        return false;
+    }
 
     // Vector to store all indices
     vector<size_t> indices(S2D_x.size());
@@ -568,10 +582,10 @@ void TrackProcessor::computeWithoutSaturation(const std::vector<double>& x_hits_
 
     image = signal;
 
-    return;
+    return true;
 }
 
-void TrackProcessor::cloud_smearing3D(const vector<double>& x_hits_tr,
+bool TrackProcessor::cloud_smearing3D(const vector<double>& x_hits_tr,
                                       const vector<double>& y_hits_tr,
                                       const vector<double>& z_hits_tr,
                                       const vector<double>& energy_hits,
@@ -580,6 +594,11 @@ void TrackProcessor::cloud_smearing3D(const vector<double>& x_hits_tr,
                                       vector<float>& S3D_z) {
 
     vector<double> nel = NelGEM2(energy_hits, z_hits_tr);
+    if (nel.empty()) {
+        std::cerr << "Warning: TrackProcessor::cloud_smearing3D: skipping this track because of empty result from TrackProcessor::NelGEM2."<<std::endl;
+        return false;
+    }
+    
     //DEBUG
     //for(unsigned int i=0; i<nel.size(); i++) {
     //    cout<<nel[i]<<"\n";
@@ -601,7 +620,7 @@ void TrackProcessor::cloud_smearing3D(const vector<double>& x_hits_tr,
     //    cout<<S3D_x[i]<<endl;
     //}
 
-    return;
+    return true;
 }
 
 
@@ -641,6 +660,9 @@ void TrackProcessor::smear_parallel(const vector<double>& x_axis_hit,const vecto
     X.reserve(nelsum);
     Y.reserve(nelsum);
     Z.reserve(nelsum);
+
+    // Fixed random seed
+    bool fixedSeed = config.getBool("fixed_seed");
     
     // Create a vector of indices where each index i is repeated nel[i] times
     vector<long int> indices(nelsum);
@@ -668,7 +690,9 @@ void TrackProcessor::smear_parallel(const vector<double>& x_axis_hit,const vecto
             vector<float> x_paralvec,y_paralvec,z_paralvec;
             TRandom3 paralrandom;
             myMutex.lock();
-            paralrandom.SetSeed(floor(gRandom->Rndm()*10000));
+            //deterministic seed from chunk start
+            if(fixedSeed) paralrandom.SetSeed(3+static_cast<UInt_t>(range.begin()));
+            else paralrandom.SetSeed(floor(gRandom->Rndm()*10000));
             myMutex.unlock();
             for(auto iterator=range.begin();iterator<range.end();++iterator)
             {
@@ -723,7 +747,8 @@ vector<double> TrackProcessor::NelGEM2(const vector<double>& energyDep, const ve
     transform(drift_l.begin(), drift_l.end(), negatives.begin(),
               [](int x) { return x < 0; });
     if (any_of(negatives.begin(), negatives.end(), [](bool b) { return b; })) {
-        throw runtime_error("TrackProcessor::NelGEM2: track contains hits with negative drift length.\n");
+        std::cerr << "Warning: TrackProcessor::NelGEM2: track contains hits with negative drift length."<<std::endl;
+        return {};  // empty vector signals "skip"
     }
     
     vector<double> n_ioniz_el_mean(n_ioniz_el_ini.size(), 0.0);
@@ -735,6 +760,10 @@ vector<double> TrackProcessor::NelGEM2(const vector<double>& energyDep, const ve
     transform(n_ioniz_el_mean.begin(), n_ioniz_el_mean.end(), n_ioniz_el.begin(), [&] (double a) {
         return gRandom->Poisson(a);
     });
+
+    N_primaries_reaching_GEMs = std::accumulate(n_ioniz_el.begin(), n_ioniz_el.end(), 0.0);
+    std::cout << "Number of primaries reaching GEMs: " << N_primaries_reaching_GEMs << std::endl;
+    
     
     // total number of secondary electrons considering the gain in the 2nd GEM foil
     vector<double> n_tot_el = NelGEM1(n_ioniz_el);
@@ -772,7 +801,7 @@ double TrackProcessor::Nph_saturation(int nel, double A, double beta) {
 }
 
 
-void TrackProcessor::ph_smearing2D( const vector<double>& x_hits_tr,                        //Function still to be corrected
+bool TrackProcessor::ph_smearing2D( const vector<double>& x_hits_tr,                        //Function still to be corrected
                                     const vector<double>& y_hits_tr,
                                     const vector<double>& z_hits_tr,
                                     const vector<double>& energy_hits,
@@ -781,6 +810,10 @@ void TrackProcessor::ph_smearing2D( const vector<double>& x_hits_tr,            
 
     // Electrons in GEM2
     vector<double> nel = NelGEM2(energy_hits, z_hits_tr);
+    if (nel.empty()) {
+        std::cerr << "Warning: TrackProcessor::ph_smearing2D: skipping this track because of empty result from TrackProcessor::NelGEM2."<<std::endl;
+        return false;
+    }
 
     double optphotons_per_el    = config.getDouble("photons_per_el");
     double optA                 = config.getDouble("A");
@@ -796,7 +829,7 @@ void TrackProcessor::ph_smearing2D( const vector<double>& x_hits_tr,            
     S2D_x = smear(x_hits_tr, sigma_xy, nph);
     S2D_y = smear(y_hits_tr, sigma_xy, nph);
 
-    return;
+    return true;
 }
 
 void TrackProcessor::TrackVignetting(vector<vector<double>>& image, int xpix, int ypix, const TH2F & VignMap) {

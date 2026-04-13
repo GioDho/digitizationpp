@@ -42,8 +42,10 @@ public:
      * @param[in] energy Total event energy.
      * @param[in] NR_flag Flag indicating if the event is a nuclear recoil.
      * @param[in] image 2D image to be filled with the simulated event.
+     *
+     * @return False is track has to be skipped for some reason (e.g. negative drift length)
      */
-    void computeWithSaturation(const std::vector<double>& x_hits_tr,
+    bool computeWithSaturation(const std::vector<double>& x_hits_tr,
                                const std::vector<double>& y_hits_tr,
                                const std::vector<double>& z_hits_tr,
                                const std::vector<double>& energy_hits_tr,
@@ -60,8 +62,10 @@ public:
      * @param[in] z_hits_tr Vector of z coordinates of energy deposits.
      * @param[in] energy_hits_tr Energy deposited at each hit.
      * @param[in] image 2D image to be filled with the simulated event.
+     *
+     * @return False is track has to be skipped for some reason (e.g. negative drift length)
      */
-    void computeWithoutSaturation(const std::vector<double>& x_hits_tr,
+    bool computeWithoutSaturation(const std::vector<double>& x_hits_tr,
                                   const std::vector<double>& y_hits_tr,
                                   const std::vector<double>& z_hits_tr,
                                   const std::vector<double>& energy_hits_tr,
@@ -111,6 +115,10 @@ public:
                              std::vector<double>& y_hits_tr,
                              std::vector<double>& z_hits_tr);
 
+     int GetN_primaries_reaching_GEMs() {
+         return N_primaries_reaching_GEMs;
+     }
+
 private:
     ConfigManager& config; ///< Reference to configuration
 
@@ -123,8 +131,10 @@ private:
      * @param[in] S3D_x Vector of x coordinates of smeared electrons.
      * @param[in] S3D_y Vector of y coordinates of smeared electrons.
      * @param[in] S3D_z Vector of z coordinates of smeared electrons.
+     * 
+     * @return False is track has to be skipped for some reason (e.g. negative drift length)
      */
-    void cloud_smearing3D(  const std::vector<double>& x_hits_tr,
+    bool cloud_smearing3D(  const std::vector<double>& x_hits_tr,
                             const std::vector<double>& y_hits_tr,
                             const std::vector<double>& z_hits_tr,
                             const std::vector<double>& energy_hits_tr,
@@ -175,8 +185,10 @@ private:
      * @param[in] energy_hits_tr Energy deposited at each hit.
      * @param[in] S2D_x Vector of x coordinates of smeared electrons.
      * @param[in] S2D_y Vector of y coordinates of smeared electrons.
+     * 
+     * @return False is track has to be skipped for some reason (e.g. negative drift length)
      */
-    void ph_smearing2D( const std::vector<double>& x_hits_tr,
+    bool ph_smearing2D( const std::vector<double>& x_hits_tr,
                         const std::vector<double>& y_hits_tr,
                         const std::vector<double>& z_hits_tr,
                         const std::vector<double>& energy_hits_tr,
@@ -194,7 +206,7 @@ private:
     std::vector<double> NelGEM1(const std::vector<double>& N_ioniz_el);
 
     /**
-     * @brief Applies GEM2 gain and charge losses to electrons based on z position.
+     * @brief Applies GEM2 gain and charge losses to electrons based on z position. Returns empty vector if the track has hits with negative drift length
      */
     std::vector<double> NelGEM2(const std::vector<double>& energyDep,const std::vector<double>& drift_l);
 
@@ -239,6 +251,7 @@ private:
         {"z_max",         12}
     };
 
+    int N_primaries_reaching_GEMs;
 
 
 };
